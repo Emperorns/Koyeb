@@ -11,8 +11,3 @@ services:
         fromEnvironment: KOYEB_API_KEY
     webPort: 8080
     internalPort: 8080
-    webhook:
-      url: /webhook
-      method: POST
-      headers:
-        - Content-Type: application/json
