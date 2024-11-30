@@ -1,7 +1,7 @@
 import os
-import asyncio
 import logging
 import psycopg2
+from flask import Flask, request
 from telegram import Update, Bot
 from telegram.ext import (
     Application,
@@ -10,6 +10,7 @@ from telegram.ext import (
     filters,
     ContextTypes,
 )
+from telegram.ext import Dispatcher
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,12 @@ CREATE TABLE IF NOT EXISTS users (
 );
 """)
 conn.commit()
+
+# Flask app for webhook
+app = Flask(__name__)
+
+# Create Application instance
+application = Application.builder().token(BOT_TOKEN).build()
 
 # Command: Start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -115,35 +122,25 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/help - Show this help message"
     )
 
-# Main function to start the bot
-async def main():
-    # Create Application instance
-    app = Application.builder().token(BOT_TOKEN).build()
+# Flask route to receive webhook requests
+@app.route(f'/{BOT_TOKEN}', methods=['POST'])
+def webhook():
+    update = Update.de_json(request.get_json(), application.bot)
+    application.update_queue.put(update)  # Push update to the dispatcher
+    return "OK", 200
 
-    # Add handlers
-    app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("register", register))
-    app.add_handler(CommandHandler("create_account", create_account))
-    app.add_handler(CommandHandler("koyeb_info", koyeb_info))
-    app.add_handler(CommandHandler("help", help_command))
+# Dispatcher for handling updates
+dispatcher = Dispatcher(application.bot, application.update_queue)
+dispatcher.add_handler(CommandHandler("start", start))
+dispatcher.add_handler(CommandHandler("register", register))
+dispatcher.add_handler(CommandHandler("create_account", create_account))
+dispatcher.add_handler(CommandHandler("koyeb_info", koyeb_info))
+dispatcher.add_handler(CommandHandler("help", help_command))
 
-    # Set webhook
-    bot = Bot(token=BOT_TOKEN)
-    await bot.set_webhook(WEBHOOK_URL)
+# Start the Flask app
+if __name__ == '__main__':
+    # Set the webhook URL
+    application.bot.set_webhook(WEBHOOK_URL)
 
-    logger.info("Bot is running with webhook!")
-
-    # Start webhook instead of polling
-    await app.start_webhook(
-        listen="0.0.0.0",  # Listen on all interfaces
-        port=int(os.getenv("PORT", "8443")),  # Webhook port, default to 8443
-        url_path=BOT_TOKEN,  # Webhook path
-        webhook_url=WEBHOOK_URL,  # Replace with actual webhook URL
-    )
-
-    # Keep the bot running
-    await app.idle()
-
-# Run the bot
-if __name__ == "__main__":
-    asyncio.run(main())
+    # Start Flask app to listen for updates
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
