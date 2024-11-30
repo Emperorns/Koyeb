@@ -62,7 +62,14 @@ class KoyebBot:
 def main():
     koyeb_api = KoyebAPI()
     bot = KoyebBot('7155604762:AAH3FqSGm4ZzXiTl73H-O0-KXP9U_akeYyU', koyeb_api)
-    bot.updater.start_webhook(listen='127.0.0.1', port=5000, url_path='7155604762:AAH3FqSGm4ZzXiTl73H-O0-KXP9U_akeYyU', webhook_url='https://koyeb-up3n.onrender.com')
+    from flask import Flask
+app = Flask(__name__)
+
+# ... (rest of the code remains the same)
+
+if __name__ == '__main__':
+    bot.updater.start_webhook(listen='0.0.0.0', port=5000, url_path=os.environ['TELEGRAM_BOT_TOKEN'], webhook_url=os.environ['RENDER_WEBHOOK_URL'])
+    app.run(host='0.0.0.0', port=5000)
     bot.updater.idle()
 
 if __name__ == '__main__':
