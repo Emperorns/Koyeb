@@ -1,4 +1,4 @@
-python-telegram-bot>=20.0
-httpx
-psycopg2
-asyncio
+Flask==2.3.2
+python-telegram-bot==20.3
+psycopg2==2.9.6
+httpx==0.24.1
