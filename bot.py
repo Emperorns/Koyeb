@@ -1,134 +1,178 @@
-import os
+import logging
 import psycopg2
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Updater, CommandHandler, MessageHandler, filters, CallbackQueryHandler, CallbackContext
 import requests
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackContext,
+    CallbackQueryHandler,
+    filters,
+)
 
-# Database connection
-DATABASE_URL = os.getenv("DATABASE_URL")
-conn = psycopg2.connect(DATABASE_URL)
+# Enable logging
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Database configuration
+DATABASE_URL = "postgres://koyeb-adm:khFat50DlXGj@ep-purple-cloud-a28j7t3o.eu-central-1.pg.koyeb.app/koyebdb"
+conn = psycopg2.connect(DATABASE_URL, sslmode="require")
 cursor = conn.cursor()
 
-# Create tables if not exist
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    telegram_id BIGINT PRIMARY KEY
-);
-""")  # Ensure `users` table is created first.
-
+# Create necessary tables
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS accounts (
     id SERIAL PRIMARY KEY,
-    telegram_id BIGINT REFERENCES users(telegram_id),
-    api_key TEXT,
-    email TEXT,
-    password TEXT
-);
-""")  # Then create `accounts` table with a foreign key.
+    telegram_id BIGINT NOT NULL,
+    api_key TEXT NOT NULL
+)
+""")
 conn.commit()
 
-def start(update: Update, context: CallbackContext):
-    """Welcome message and command instructions."""
-    update.message.reply_text(
-        "Welcome to the Koyeb Manager Bot! Use /login to link your account, /create to create a new account, or /help for more options."
+
+# Start command
+async def start(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text(
+        "Welcome to the Koyeb Manager Bot!\n\n"
+        "Manage your Koyeb apps directly from Telegram.\n"
+        "Use /login to link your account, /createapp to deploy a new app, or /redeploy to redeploy an app."
     )
 
-def login(update: Update, context: CallbackContext):
-    """Start the login process."""
-    telegram_id = update.message.from_user.id
-    # Ensure the user exists in the database
-    cursor.execute("INSERT INTO users (telegram_id) VALUES (%s) ON CONFLICT DO NOTHING", (telegram_id,))
-    conn.commit()
-    update.message.reply_text(
-        "Please enter your Koyeb credentials as: `API_KEY` or `email,password`",
-        parse_mode="Markdown"
+
+# Login command
+async def login(update: Update, context: CallbackContext) -> None:
+    await update.message.reply_text(
+        "Please send your Koyeb API Key. Your account will be linked to this bot."
     )
-    context.user_data['awaiting_credentials'] = True
+    context.user_data["awaiting_api_key"] = True
 
-def handle_credentials(update: Update, context: CallbackContext):
-    """Handle the API key or email/password provided by the user."""
-    if not context.user_data.get('awaiting_credentials'):
-        return
 
-    credentials = update.message.text.split(",")
-    telegram_id = update.message.from_user.id
+# Handle API key input
+async def handle_api_key(update: Update, context: CallbackContext) -> None:
+    if context.user_data.get("awaiting_api_key"):
+        api_key = update.message.text
+        telegram_id = update.message.from_user.id
 
-    if len(credentials) == 1:  # API Key
-        api_key = credentials[0]
-        cursor.execute("INSERT INTO accounts (telegram_id, api_key) VALUES (%s, %s)", (telegram_id, api_key))
-    elif len(credentials) == 2:  # Email and password
-        email, password = credentials
-        cursor.execute("INSERT INTO accounts (telegram_id, email, password) VALUES (%s, %s, %s)", (telegram_id, email, password))
-    else:
-        update.message.reply_text("Invalid format. Please try again.")
-        return
+        # Save API key to database
+        cursor.execute(
+            "INSERT INTO accounts (telegram_id, api_key) VALUES (%s, %s) ON CONFLICT (telegram_id) DO UPDATE SET api_key = EXCLUDED.api_key",
+            (telegram_id, api_key),
+        )
+        conn.commit()
 
-    conn.commit()
-    context.user_data['awaiting_credentials'] = False
-    update.message.reply_text("Account linked successfully! Use /services to manage your web apps.")
+        await update.message.reply_text("Your account has been linked successfully!")
+        context.user_data["awaiting_api_key"] = False
 
-def create_account(update: Update, context: CallbackContext):
-    """Create a new Koyeb account."""
-    update.message.reply_text("Please provide your email and password as: `email,password`", parse_mode="Markdown")
-    context.user_data['awaiting_creation'] = True
 
-def handle_account_creation(update: Update, context: CallbackContext):
-    """Handle account creation."""
-    if not context.user_data.get('awaiting_creation'):
-        return
-
-    email, password = update.message.text.split(",")
-    response = requests.post("https://app.koyeb.com/api/v1/accounts", json={"email": email, "password": password})
-
-    if response.status_code == 201:
-        update.message.reply_text("Account created successfully! Use /login to link it.")
-    else:
-        update.message.reply_text("Failed to create account. Please try again.")
-    
-    context.user_data['awaiting_creation'] = False
-
-def help_command(update: Update, context: CallbackContext):
-    """Display help."""
-    update.message.reply_text("/login - Link an existing account\n/create - Create a new Koyeb account\n/services - Manage web apps")
-
-def services(update: Update, context: CallbackContext):
-    """List and manage Koyeb services."""
+# Redeploy an app
+async def redeploy(update: Update, context: CallbackContext) -> None:
     telegram_id = update.message.from_user.id
     cursor.execute("SELECT api_key FROM accounts WHERE telegram_id=%s", (telegram_id,))
     account = cursor.fetchone()
 
     if account:
         api_key = account[0]
-        headers = {"Authorization": f"Bearer {api_key}"}
-        response = requests.get("https://app.koyeb.com/api/v1/services", headers=headers)
-        services = response.json()
-        
-        if services.get("services"):
-            buttons = [
-                [InlineKeyboardButton(s["name"], callback_data=f"service:{s['id']}")]
-                for s in services["services"]
-            ]
-            update.message.reply_text("Select a service to manage:", reply_markup=InlineKeyboardMarkup(buttons))
-        else:
-            update.message.reply_text("No services found.")
+        await update.message.reply_text("Please provide the Service ID of the app to redeploy.")
+        context.user_data["awaiting_service_redeploy"] = api_key
     else:
-        update.message.reply_text("No linked account found. Use /login to link your account.")
+        await update.message.reply_text("No account linked. Use /login to link your account.")
 
-def main():
-    """Run the bot."""
-    updater = Updater(os.getenv("BOT_TOKEN"))
-    dp = updater.dispatcher
 
-    dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler("help", help_command))
-    dp.add_handler(CommandHandler("login", login))
-    dp.add_handler(CommandHandler("create", create_account))
-    dp.add_handler(CommandHandler("services", services))
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_credentials))
-    dp.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_account_creation))
+async def handle_redeploy(update: Update, context: CallbackContext) -> None:
+    if not context.user_data.get("awaiting_service_redeploy"):
+        return
 
-    updater.start_polling()
-    updater.idle()
+    api_key = context.user_data["awaiting_service_redeploy"]
+    service_id = update.message.text
+
+    headers = {"Authorization": f"Bearer {api_key}"}
+    response = requests.post(
+        f"https://app.koyeb.com/api/v1/services/{service_id}/deployments", headers=headers
+    )
+
+    if response.status_code == 201:
+        await update.message.reply_text("App redeployed successfully!")
+    else:
+        await update.message.reply_text("Failed to redeploy app. Please check the Service ID.")
+
+    context.user_data["awaiting_service_redeploy"] = None
+
+
+# Create a new app
+async def create_app(update: Update, context: CallbackContext) -> None:
+    telegram_id = update.message.from_user.id
+    cursor.execute("SELECT api_key FROM accounts WHERE telegram_id=%s", (telegram_id,))
+    account = cursor.fetchone()
+
+    if account:
+        api_key = account[0]
+        await update.message.reply_text(
+            "Please provide the app name and GitHub repository URL (in format: `app_name,repo_url`)."
+        )
+        context.user_data["awaiting_app_creation"] = api_key
+    else:
+        await update.message.reply_text("No account linked. Use /login to link your account.")
+
+
+async def handle_app_creation(update: Update, context: CallbackContext) -> None:
+    if not context.user_data.get("awaiting_app_creation"):
+        return
+
+    api_key = context.user_data["awaiting_app_creation"]
+    try:
+        app_name, repo_url = update.message.text.split(",")
+        headers = {"Authorization": f"Bearer {api_key}"}
+        data = {
+            "name": app_name.strip(),
+            "git": {
+                "repository": repo_url.strip(),
+                "branch": "main",
+                "build_command": "python bot.py",
+                "run_command": "python bot.py",
+            },
+        }
+
+        response = requests.post("https://app.koyeb.com/api/v1/services", json=data, headers=headers)
+
+        if response.status_code == 201:
+            await update.message.reply_text(f"App `{app_name}` created successfully!")
+        else:
+            await update.message.reply_text("Failed to create app. Check the input format.")
+    except ValueError:
+        await update.message.reply_text("Invalid format. Use: `app_name,repo_url`")
+    except Exception as e:
+        await update.message.reply_text(f"An error occurred: {e}")
+
+    context.user_data["awaiting_app_creation"] = None
+
+
+# Main function to run the bot
+async def main():
+    TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+    app = Application.builder().token(TOKEN).build()
+
+    # Command handlers
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(CommandHandler("login", login))
+    app.add_handler(CommandHandler("redeploy", redeploy))
+    app.add_handler(CommandHandler("createapp", create_app))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_api_key))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_redeploy))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_app_creation))
+
+    # Webhook configuration
+    WEBHOOK_URL = "https://your-koyeb-app-url.com/webhook"
+    await app.bot.set_webhook(WEBHOOK_URL)
+
+    print("Bot is running with webhook!")
+    await app.start()
+    await app.updater.idle()
+
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+
+    asyncio.run(main())
