@@ -132,8 +132,16 @@ async def main():
     await bot.set_webhook(WEBHOOK_URL)
 
     logger.info("Bot is running with webhook!")
-    await app.start()
-    await app.updater.start_polling()  # Start webhook instead of polling
+
+    # Start webhook instead of polling
+    await app.start_webhook(
+        listen="0.0.0.0",  # Listen on all interfaces
+        port=int(os.getenv("PORT", "8443")),  # Webhook port, default to 8443
+        url_path=BOT_TOKEN,  # Webhook path
+        webhook_url=WEBHOOK_URL,  # Replace with actual webhook URL
+    )
+
+    # Keep the bot running
     await app.idle()
 
 # Run the bot
