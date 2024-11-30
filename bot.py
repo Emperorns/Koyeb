@@ -151,7 +151,7 @@ async def handle_app_creation(update: Update, context: CallbackContext) -> None:
 
 # Main function to run the bot
 async def main():
-    TOKEN = "YOUR_TELEGRAM_BOT_TOKEN"
+    TOKEN = "7155604762:AAH3FqSGm4ZzXiTl73H-O0-KXP9U_akeYyU"
     app = Application.builder().token(TOKEN).build()
 
     # Command handlers
