@@ -9,12 +9,14 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 conn = psycopg2.connect(DATABASE_URL)
 cursor = conn.cursor()
 
-# Create tables if not exists
+# Create tables if not exist
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS users (
-    telegram_id BIGINT PRIMARY KEY,
-    active_account_id SERIAL
+    telegram_id BIGINT PRIMARY KEY
 );
+""")  # Ensure `users` table is created first.
+
+cursor.execute("""
 CREATE TABLE IF NOT EXISTS accounts (
     id SERIAL PRIMARY KEY,
     telegram_id BIGINT REFERENCES users(telegram_id),
@@ -22,7 +24,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     email TEXT,
     password TEXT
 );
-""")
+""")  # Then create `accounts` table with a foreign key.
 conn.commit()
 
 def start(update: Update, context: CallbackContext):
@@ -33,6 +35,10 @@ def start(update: Update, context: CallbackContext):
 
 def login(update: Update, context: CallbackContext):
     """Start the login process."""
+    telegram_id = update.message.from_user.id
+    # Ensure the user exists in the database
+    cursor.execute("INSERT INTO users (telegram_id) VALUES (%s) ON CONFLICT DO NOTHING", (telegram_id,))
+    conn.commit()
     update.message.reply_text(
         "Please enter your Koyeb credentials as: `API_KEY` or `email,password`",
         parse_mode="Markdown"
