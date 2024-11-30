@@ -1,4 +1,4 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from koyeb_client import KoyebClient
 import os
 
@@ -62,6 +62,9 @@ def main():
     dp.add_handler(CommandHandler("deploy_app", bot.deploy_app))
     dp.add_handler(CommandHandler("delete_app", bot.delete_app))
     dp.add_handler(CommandHandler("select_app", bot.select_app))
+
+    # Handle incoming updates from Telegram
+    dp.add_handler(MessageHandler(Filters.text, bot.select_app))
 
     updater.start_polling()
     updater.idle()
