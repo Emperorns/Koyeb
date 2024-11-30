@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: telegram-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python app.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        fromEnvironment: TELEGRAM_BOT_TOKEN
+      - key: KOYEB_API_KEY
+        fromEnvironment: KOYEB_API_KEY
+    webPort: 8080
+    internalPort: 8080
+    webhook:
+      url: /webhook
+      method: POST
+      headers:
+        - Content-Type: application/json
