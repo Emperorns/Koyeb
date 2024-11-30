@@ -164,7 +164,7 @@ async def main():
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_app_creation))
 
     # Webhook configuration
-    WEBHOOK_URL = "https://your-koyeb-app-url.com/webhook"
+    WEBHOOK_URL = "https://koyeb-up3n.onrender.com/webhook"
     await app.bot.set_webhook(WEBHOOK_URL)
 
     print("Bot is running with webhook!")
