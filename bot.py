@@ -74,12 +74,12 @@ class KoyebBot:
 
 app = Flask(__name__)
 
-@app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
+@app.route('/', methods=['POST'])
 def handle_webhook():
     update = request.get_json()
     bot = KoyebBot(TELEGRAM_BOT_TOKEN, KoyebAPI())
     bot.updater.dispatcher.process_update(Update.de_json(update, bot.updater.bot))
-    return 'OK'
+    return 'OK', 200
 
 def main():
     koyeb_api = KoyebAPI()
@@ -87,5 +87,5 @@ def main():
 
 if __name__ == '__main__':
     main()
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
