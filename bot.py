@@ -1,9 +1,22 @@
+import os
 import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import Update
 from koyeb_api import KoyebAPI
 from models import User
+from flask import Flask
 
-logging.basicConfig(level=logging.INFO)
+# Enable logging
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
+
+# Telegram bot token
+TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
+
+# Render webhook URL
+RENDER_WEBHOOK_URL = os.environ['RENDER_WEBHOOK_URL']
 
 class KoyebBot:
     def __init__(self, token, koyeb_api):
@@ -61,17 +74,12 @@ class KoyebBot:
 
 def main():
     koyeb_api = KoyebAPI()
-    bot = KoyebBot('7155604762:AAH3FqSGm4ZzXiTl73H-O0-KXP9U_akeYyU', koyeb_api)
-    import flask
-Flask = flask.Flask
-app = Flask(__name__)
+    bot = KoyebBot(TELEGRAM_BOT_TOKEN, koyeb_api)
+    app = Flask(__name__)
 
-# ... (rest of the code remains the same)
-
-if __name__ == '__main__':
-    bot.updater.start_webhook(listen='0.0.0.0', port=5000, url_path=os.environ['TELEGRAM_BOT_TOKEN'], webhook_url=os.environ['RENDER_WEBHOOK_URL'])
-    app.run(host='0.0.0.0', port=5000)
-    bot.updater.idle()
+    if __name__ == '__main__':
+        bot.updater.start_webhook(listen='0.0.0.0', port=5000, url_path=TELEGRAM_BOT_TOKEN, webhook_url=RENDER_WEBHOOK_URL)
+        app.run(host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     main()
