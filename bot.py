@@ -71,8 +71,10 @@ class KoyebBot:
             self.koyeb_api.login(api_key)
             self.logged_in = True
             context.bot.send_message(chat_id=update.effective_chat.id, text='Logged in successfully!')
+            print(f'Logged in successfully! {api_key}')
         except Exception as e:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login failed: {str(e)}')
+            print(f'Login failed: {str(e)}')
         return ConversationHandler.END
 
     def logout(self, update, context):
