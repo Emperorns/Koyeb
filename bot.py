@@ -54,12 +54,13 @@ class KoyebBot:
         self.dp.add_handler(CommandHandler('list_apps', self.list_apps))
         self.dp.add_handler(CommandHandler('get_app', self.get_app))
         self.dp.add_handler(CommandHandler('delete_app', self.delete_app))
+        self.dp.add_handler(CommandHandler('status', self.status))
 
     def start(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Welcome to Koyeb Bot!')
 
     def help(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /login, /logout, /set_app_id, /create_app, /deploy, /redeploy, /logs, /env_vars, /set_env_var, /get_env_var, /delete_env_var, /list_apps, /get_app, /delete_app')
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /login, /logout, /set_app_id, /create_app, /deploy, /redeploy, /logs, /env_vars, /set_env_var, /get_env_var, /delete_env_var, /list_apps, /get_app, /delete_app, /status')
 
     def login(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your Koyeb API key:')
@@ -72,10 +73,11 @@ class KoyebBot:
             self.logged_in = True
             context.bot.send_message(chat_id=update.effective_chat.id, text='Logged in successfully!')
             print(f'Logged in successfully! {api_key}')
+            return ConversationHandler.END
         except Exception as e:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login failed: {str(e)}')
             print(f'Login failed: {str(e)}')
-        return ConversationHandler.END
+            return LOGIN
 
     def logout(self, update, context):
         if self.logged_in:
@@ -177,6 +179,12 @@ class KoyebBot:
             context.bot.send_message(chat_id=update.effective_chat.id, text='App deleted successfully!')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in.')
+
+    def status(self, update, context):
+        if self.logged_in:
+            context.bot.send_message(chat_id=update.effective_chat.id, text='You are logged in.')
+        else:
+            context.bot.send_message(chat_id=update.effective_chat.id, text='You are not logged in.')
 
 app = Flask(__name__)
 
