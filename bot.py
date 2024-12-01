@@ -62,7 +62,8 @@ class KoyebBot:
 def main():
     koyeb_api = KoyebAPI()
     bot = KoyebBot('7155604762:AAH3FqSGm4ZzXiTl73H-O0-KXP9U_akeYyU', koyeb_api)
-    from flask import Flask
+    import flask
+Flask = flask.Flask
 app = Flask(__name__)
 
 # ... (rest of the code remains the same)
