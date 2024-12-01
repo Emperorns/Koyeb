@@ -1,6 +1,6 @@
 import os
 import logging
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
 from telegram import Update
 from koyeb_api import KoyebAPI
 from models import User
@@ -18,6 +18,9 @@ TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 # Render webhook URL
 RENDER_WEBHOOK_URL = os.environ['RENDER_WEBHOOK_URL']
 
+LOGIN = range(1)
+SET_APP_ID = range(1)
+
 class KoyebBot:
     def __init__(self, token, koyeb_api):
         self.token = token
@@ -28,49 +31,42 @@ class KoyebBot:
         self.dp = self.updater.dispatcher
         self.dp.add_handler(CommandHandler('start', self.start))
         self.dp.add_handler(CommandHandler('help', self.help))
-        self.dp.add_handler(CommandHandler('login', self.login))
-        self.dp.add_handler(CommandHandler('logout', self.logout))
-        self.dp.add_handler(CommandHandler('create_app', self.create_app))
-        self.dp.add_handler(CommandHandler('redeploy', self.redeploy))
-        self.dp.add_handler(CommandHandler('logs', self.logs))
-        self.dp.add_handler(CommandHandler('env_vars', self.env_vars))
+        self.dp.add_handler(ConversationHandler(
+            entry_points=[CommandHandler('login', self.login)],
+            states={LOGIN: [MessageHandler(Filters.text, self.login_callback)]},
+            fallbacks=[]
+        ))
+        self.dp.add_handler(ConversationHandler(
+            entry_points=[CommandHandler('set_app_id', self.set_app_id)],
+            states={SET_APP_ID: [MessageHandler(Filters.text, self.set_app_id_callback)]},
+            fallbacks=[]
+        ))
 
     def start(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Welcome to Koyeb Bot!')
 
     def help(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /login, /logout, /create_app, /redeploy, /logs, /env_vars')
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /login, /set_app_id')
 
     def login(self, update, context):
-        # Login logic using Koyeb API
-        api_key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your Koyeb API key:').result()
-        self.koyeb_api.login(api_key.text)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your Koyeb API key:')
+        return LOGIN
 
-    def logout(self, update, context):
-        # Logout logic using Koyeb API
-        self.koyeb_api.logout()
+    def login_callback(self, update, context):
+        api_key = update.message.text
+        self.koyeb_api.login(api_key)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Logged in successfully!')
+        return ConversationHandler.END
 
-    def create_app(self, update, context):
-        # Create app logic using Koyeb API
-        app_name = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app name:').result()
-        self.koyeb_api.create_app(app_name.text)
+    def set_app_id(self, update, context):
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your app ID:')
+        return SET_APP_ID
 
-    def redeploy(self, update, context):
-        # Redeploy logic using Koyeb API
-        app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result()
-        self.koyeb_api.redeploy(app_id.text)
-
-    def logs(self, update, context):
-        # Logs logic using Koyeb API
-        app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result()
-        logs = self.koyeb_api.get_logs(app_id.text)
-        context.bot.send_message(chat_id=update.effective_chat.id, text=logs)
-
-    def env_vars(self, update, context):
-        # Env vars logic using Koyeb API
-        app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result()
-        env_vars = self.koyeb_api.get_env_vars(app_id.text)
-        context.bot.send_message(chat_id=update.effective_chat.id, text=env_vars)
+    def set_app_id_callback(self, update, context):
+        app_id = update.message.text
+        self.koyeb_api.set_app_id(app_id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='App ID set successfully!')
+        return ConversationHandler.END
 
 app = Flask(__name__)
 
