@@ -4,7 +4,7 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import Update
 from koyeb_api import KoyebAPI
 from models import User
-from flask import Flask
+from flask import Flask, request, jsonify
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -72,14 +72,20 @@ class KoyebBot:
         env_vars = self.koyeb_api.get_env_vars(app_id.text)
         context.bot.send_message(chat_id=update.effective_chat.id, text=env_vars)
 
+app = Flask(__name__)
+
+@app.route('/' + TELEGRAM_BOT_TOKEN, methods=['POST'])
+def handle_webhook():
+    update = request.get_json()
+    bot = KoyebBot(TELEGRAM_BOT_TOKEN, KoyebAPI())
+    bot.updater.dispatcher.process_update(Update.de_json(update, bot.updater.bot))
+    return 'OK'
+
 def main():
     koyeb_api = KoyebAPI()
     bot = KoyebBot(TELEGRAM_BOT_TOKEN, koyeb_api)
-    app = Flask(__name__)
-
-    if __name__ == '__main__':
-        bot.updater.start_webhook(listen='0.0.0.0', port=5000, url_path=TELEGRAM_BOT_TOKEN, webhook_url=RENDER_WEBHOOK_URL)
-        app.run(host='0.0.0.0', port=5000)
 
 if __name__ == '__main__':
     main()
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
