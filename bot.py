@@ -63,21 +63,21 @@ class KoyebBot:
         context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /login, /logout, /set_app_id, /create_app, /deploy, /redeploy, /logs, /env_vars, /set_env_var, /get_env_var, /delete_env_var, /list_apps, /get_app, /delete_app, /status')
 
     def login(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your Koyeb API key:')
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your email:')
         return LOGIN
 
     def login_callback(self, update, context):
-        api_key = update.message.text
+        email = update.message.text
+        password = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your password:').result().text
         try:
-            self.koyeb_api.login(api_key)
+            self.koyeb_api.login(email, password)
             self.logged_in = True
             context.bot.send_message(chat_id=update.effective_chat.id, text='Logged in successfully!')
-            print(f'Logged in successfully! {api_key}')
-            return ConversationHandler.END
+            print(f'Logged in successfully! Email: {email}')
         except Exception as e:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'Login failed: {str(e)}')
             print(f'Login failed: {str(e)}')
-            return LOGIN
+        return ConversationHandler.END
 
     def logout(self, update, context):
         if self.logged_in:
@@ -98,8 +98,8 @@ class KoyebBot:
 
     def create_app(self, update, context):
         if self.logged_in:
-            app_name = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app name:').result()
-            self.koyeb_api.create_app(app_name.text)
+            app_name = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app name:').result().text
+            self.koyeb_api.create_app(app_name)
             context.bot.send_message(chat_id=update.effective_chat.id, text='App created successfully!')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in.')
@@ -134,25 +134,25 @@ class KoyebBot:
 
     def set_env_var(self, update, context):
         if self.logged_in and self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result()
-            value = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter value:').result()
-            self.koyeb_api.set_env_var(self.app_id, key.text, value.text)
+            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
+            value = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter value:').result().text
+            self.koyeb_api.set_env_var(self.app_id, key, value)
             context.bot.send_message(chat_id=update.effective_chat.id, text='Environment variable set successfully!')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in and have an app ID set.')
 
     def get_env_var(self, update, context):
         if self.logged_in and self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result()
-            value = self.koyeb_api.get_env_var(self.app_id, key.text)
+            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
+            value = self.koyeb_api.get_env_var(self.app_id, key)
             context.bot.send_message(chat_id=update.effective_chat.id, text=value)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in and have an app ID set.')
 
     def delete_env_var(self, update, context):
         if self.logged_in and self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result()
-            self.koyeb_api.delete_env_var(self.app_id, key.text)
+            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
+            self.koyeb_api.delete_env_var(self.app_id, key)
             context.bot.send_message(chat_id=update.effective_chat.id, text='Environment variable deleted successfully!')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in and have an app ID set.')
@@ -166,16 +166,16 @@ class KoyebBot:
 
     def get_app(self, update, context):
         if self.logged_in:
-            app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result()
-            app = self.koyeb_api.get_app(app_id.text)
+            app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result().text
+            app = self.koyeb_api.get_app(app_id)
             context.bot.send_message(chat_id=update.effective_chat.id, text=app)
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in.')
 
     def delete_app(self, update, context):
         if self.logged_in:
-            app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result()
-            self.koyeb_api.delete_app(app_id.text)
+            app_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app ID:').result().text
+            self.koyeb_api.delete_app(app_id)
             context.bot.send_message(chat_id=update.effective_chat.id, text='App deleted successfully!')
         else:
             context.bot.send_message(chat_id=update.effective_chat.id, text='You must be logged in.')
