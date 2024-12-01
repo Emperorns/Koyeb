@@ -6,6 +6,8 @@ class KoyebAPI:
         self.access_token = None
 
     def login(self, api_key):
+        if not api_key:
+            raise Exception('API key is required')
         headers = {'Authorization': f'Bearer {api_key}'}
         response = requests.get(f'{self.base_url}/auth', headers=headers)
         if response.status_code == 200:
