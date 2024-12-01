@@ -5,11 +5,11 @@ class KoyebAPI:
         self.base_url = 'https://api.koyeb.com/v1'
         self.access_token = None
 
-    def login(self, api_key):
-        if not api_key:
-            raise Exception('API key is required')
-        headers = {'Authorization': f'Bearer {api_key}'}
-        response = requests.get(f'{self.base_url}/auth', headers=headers)
+    def login(self, email, password):
+        if not email or not password:
+            raise Exception('Email and password are required')
+        data = {'email': email, 'password': password}
+        response = requests.post(f'{self.base_url}/auth', json=data)
         if response.status_code == 200:
             self.access_token = response.json()['access_token']
         else:
