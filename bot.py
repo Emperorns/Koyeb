@@ -3,7 +3,7 @@ import logging
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import Update
 from koyeb_api import KoyebAPI
-from flask import Flask, request, jsonify
+
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -16,9 +16,6 @@ TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
 # Koyeb API token
 KOYEB_API_TOKEN = os.environ['KOYEB_API_TOKEN']
 
-# Render webhook URL
-RENDER_WEBHOOK_URL = os.environ['RENDER_WEBHOOK_URL']
-
 class KoyebBot:
     def __init__(self, token, koyeb_api):
         self.token = token
@@ -30,90 +27,19 @@ class KoyebBot:
         self.dp = self.updater.dispatcher
         self.dp.add_handler(CommandHandler('start', self.start))
         self.dp.add_handler(CommandHandler('help', self.help))
-        self.dp.add_handler(CommandHandler('set_app_id', self.set_app_id))
-        self.dp.add_handler(CommandHandler('create_app', self.create_app))
-        self.dp.add_handler(CommandHandler('deploy', self.deploy))
-        self.dp.add_handler(CommandHandler('redeploy', self.redeploy))
-        self.dp.add_handler(CommandHandler('logs', self.logs))
-        self.dp.add_handler(CommandHandler('env_vars', self.env_vars))
-        self.dp.add_handler(CommandHandler('set_env_var', self.set_env_var))
-        self.dp.add_handler(CommandHandler('get_env_var', self.get_env_var))
-        self.dp.add_handler(CommandHandler('delete_env_var', self.delete_env_var))
         self.dp.add_handler(CommandHandler('list_apps', self.list_apps))
         self.dp.add_handler(CommandHandler('get_app', self.get_app))
         self.dp.add_handler(CommandHandler('delete_app', self.delete_app))
-        self.dp.add_handler(CommandHandler('status', self.status))
+        self.dp.add_handler(CommandHandler('get_account_info', self.get_account_info))
+        self.dp.add_handler(CommandHandler('update_account_info', self.update_account_info))
+        self.dp.add_handler(CommandHandler('get_invoice', self.get_invoice))
+        self.dp.add_handler(CommandHandler('get_invoices', self.get_invoices))
 
     def start(self, update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text='Welcome to Koyeb Bot!')
 
     def help(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /set_app_id, /create_app, /deploy, /redeploy, /logs, /env_vars, /set_env_var, /get_env_var, /delete_env_var, /list_apps, /get_app, /delete_app, /status')
-
-    def set_app_id(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='Enter your app ID:')
-        def set_app_id_callback(update, context):
-            self.app_id = update.message.text
-            context.bot.send_message(chat_id=update.effective_chat.id, text='App ID set successfully!')
-        self.dp.add_handler(MessageHandler(Filters.text, set_app_id_callback))
-
-    def create_app(self, update, context):
-        app_name = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter app name:').result().text
-        self.koyeb_api.create_app(app_name)
-        context.bot.send_message(chat_id=update.effective_chat.id, text='App created successfully!')
-
-    def deploy(self, update, context):
-        if self.app_id:
-            self.koyeb_api.deploy(self.app_id)
-            context.bot.send_message(chat_id=update.effective_chat.id, text='App deployed successfully!')
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def redeploy(self, update, context):
-        if self.app_id:
-            self.koyeb_api.redeploy(self.app_id)
-            context.bot.send_message(chat_id=update.effective_chat.id, text='App redeploys successfully!')
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def logs(self, update, context):
-        if self.app_id:
-            logs = self.koyeb_api.get_logs(self.app_id)
-            context.bot.send_message(chat_id=update.effective_chat.id, text=logs)
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def env_vars(self, update, context):
-        if self.app_id:
-            env_vars = self.koyeb_api.get_env_vars(self.app_id)
-            context.bot.send_message(chat_id=update.effective_chat.id, text=env_vars)
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def set_env_var(self, update, context):
-        if self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
-            value = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter value:').result().text
-            self.koyeb_api.set_env_var(self.app_id, key, value)
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Environment variable set successfully!')
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def get_env_var(self, update, context):
-        if self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
-            value = self.koyeb_api.get_env_var(self.app_id, key)
-            context.bot.send_message(chat_id=update.effective_chat.id, text=value)
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
-
-    def delete_env_var(self, update, context):
-        if self.app_id:
-            key = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter key:').result().text
-            self.koyeb_api.delete_env_var(self.app_id, key)
-            context.bot.send_message(chat_id=update.effective_chat.id, text='Environment variable deleted successfully!')
-        else:
-            context.bot.send_message(chat_id=update.effective_chat.id, text='You must set an app ID.')
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Available commands: /list_apps, /get_app, /delete_app, /get_account_info, /update_account_info, /get_invoice, /get_invoices')
 
     def list_apps(self, update, context):
         apps = self.koyeb_api.list_apps()
@@ -129,24 +55,30 @@ class KoyebBot:
         self.koyeb_api.delete_app(app_id)
         context.bot.send_message(chat_id=update.effective_chat.id, text='App deleted successfully!')
 
-    def status(self, update, context):
-        context.bot.send_message(chat_id=update.effective_chat.id, text='App ID: ' + str(self.app_id))
+    def get_account_info(self, update, context):
+        account_info = self.koyeb_api.get_account_info()
+        context.bot.send_message(chat_id=update.effective_chat.id, text=account_info)
 
-app = Flask(__name__)
+    def update_account_info(self, update, context):
+        data = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter new account info (JSON):').result().text
+        self.koyeb_api.update_account_info(data)
+        context.bot.send_message(chat_id=update.effective_chat.id, text='Account info updated successfully!')
 
-@app.route('/', methods=['POST'])
-def handle_webhook():
-    update = request.get_json()
-    bot = KoyebBot(TELEGRAM_BOT_TOKEN, KoyebAPI())
-    bot.updater.dispatcher.process_update(Update.de_json(update, bot.updater.bot))
-    return 'OK', 200
+    def get_invoice(self, update, context):
+        invoice_id = context.bot.send_message(chat_id=update.effective_chat.id, text='Enter invoice ID:').result().text
+        invoice = self.koyeb_api.get_invoice(invoice_id)
+        context.bot.send_message(chat_id=update.effective_chat.id, text=invoice)
+
+    def get_invoices(self, update, context):
+        invoices = self.koyeb_api.get_invoices()
+        context.bot.send_message(chat_id=update.effective_chat.id, text=invoices)
 
 def main():
     koyeb_api = KoyebAPI()
-    bot = KoyebBot(TELEGRAM_BOT_TOKEN, koyeb_api)
     koyeb_api.login(KOYEB_API_TOKEN)
+    bot = KoyebBot(TELEGRAM_BOT_TOKEN, koyeb_api)
+    bot.updater.start_polling()
+    bot.updater.idle()
 
 if __name__ == '__main__':
     main()
-    port = int(os.environ.get('PORT', 10000))
-    app.run(host='0.0.0.0', port=port)
