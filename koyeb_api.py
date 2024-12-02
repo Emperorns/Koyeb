@@ -86,3 +86,33 @@ class KoyebAPI:
         response = requests.delete(f'{self.base_url}/apps/{app_id}', headers=headers)
         if response.status_code != 204:
             raise Exception(f'App deletion failed: {response.text}')
+
+    def get_account_info(self):
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        response = requests.get(f'{self.base_url}/account', headers=headers)
+        if response.status_code == 200:
+            return response.text
+        else:
+            raise Exception(f'Account info retrieval failed: {response.text}')
+
+    def update_account_info(self, data):
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        response = requests.patch(f'{self.base_url}/account', headers=headers, json=data)
+        if response.status_code != 200:
+            raise Exception(f'Account info update failed: {response.text}')
+
+    def get_invoice(self, invoice_id):
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        response = requests.get(f'{self.base_url}/invoices/{invoice_id}', headers=headers)
+        if response.status_code == 200:
+            return response.text
+        else:
+            raise Exception(f'Invoice retrieval failed: {response.text}')
+
+    def get_invoices(self):
+        headers = {'Authorization': f'Bearer {self.access_token}'}
+        response = requests.get(f'{self.base_url}/invoices', headers=headers)
+        if response.status_code == 200:
+            return response.text
+        else:
+            raise Exception(f'Invoices retrieval failed: {response.text}')
